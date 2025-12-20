@@ -69,7 +69,7 @@ class MainWindow(QMainWindow):
         # 设置样式
         self.setStyleSheet("""
             QMainWindow {
-                background-color: #f0f0f0;
+                background-color: #f5f5f5;
             }
             QGroupBox {
                 font-weight: bold;
@@ -77,11 +77,14 @@ class MainWindow(QMainWindow):
                 border-radius: 5px;
                 margin-top: 1ex;
                 padding-top: 10px;
+                background-color: #ffffff;
+                color: #333333;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
                 left: 10px;
                 padding: 0 5px 0 5px;
+                color: #333333;
             }
             QPushButton {
                 background-color: #4CAF50;
@@ -99,16 +102,46 @@ class MainWindow(QMainWindow):
             }
             QTabWidget::pane {
                 border: 1px solid #cccccc;
-                background-color: white;
+                background-color: #ffffff;
             }
             QTabBar::tab {
                 background-color: #e0e0e0;
                 padding: 8px;
                 border: 1px solid #cccccc;
+                color: #333333;
             }
             QTabBar::tab:selected {
+                background-color: #ffffff;
+                border-bottom: 1px solid #ffffff;
+                color: #333333;
+            }
+            QLabel {
+                color: #333333;
+            }
+            QSlider::groove:horizontal {
+                border: 1px solid #bbb;
+                background: white;
+                height: 10px;
+                border-radius: 4px;
+            }
+            QSlider::handle:horizontal {
+                background: #4CAF50;
+                border: 1px solid #5c5c5c;
+                width: 18px;
+                margin: -2px 0;
+                border-radius: 9px;
+            }
+            QSpinBox, QDoubleSpinBox, QComboBox {
+                border: 1px solid #cccccc;
+                border-radius: 4px;
+                padding: 5px;
                 background-color: white;
-                border-bottom: 1px solid white;
+                color: #333333;
+            }
+            QTextEdit {
+                background-color: #f8f8f8;
+                color: #333333;
+                border: 1px solid #cccccc;
             }
         """)
         
@@ -548,6 +581,7 @@ class MainWindow(QMainWindow):
                 border: 2px dashed #cccccc;
                 background-color: white;
                 min-height: 400px;
+                color: #666666;
             }
         """)
         self.image_label.setText("请加载图像")
@@ -568,10 +602,11 @@ class MainWindow(QMainWindow):
         self.log_text.setReadOnly(True)
         self.log_text.setStyleSheet("""
             QTextEdit {
-                background-color: #f5f5f5;
+                background-color: #f8f8f8;
                 border: 1px solid #cccccc;
                 font-family: 'Courier New', monospace;
                 font-size: 12px;
+                color: #333333;
             }
         """)
         
