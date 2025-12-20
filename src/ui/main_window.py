@@ -5,9 +5,10 @@
 
 import sys
 import os
+import cv2
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, 
-    QLabel, QPushButton, QTabWidget, QSlider, 
+    QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
+    QLabel, QPushButton, QTabWidget, QSlider,
     QSpinBox, QComboBox, QTextEdit, QGroupBox,
     QGridLayout, QApplication, QSplitter, QMessageBox,
     QFileDialog, QProgressBar, QCheckBox, QDoubleSpinBox
@@ -142,6 +143,29 @@ class MainWindow(QMainWindow):
                 background-color: #f8f8f8;
                 color: #333333;
                 border: 1px solid #cccccc;
+            }
+            QMessageBox {
+                background-color: #ffffff;
+                color: #333333;
+            }
+            QMessageBox QLabel {
+                color: #333333;
+                background-color: #ffffff;
+            }
+            QMessageBox QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 8px;
+                border-radius: 4px;
+                font-weight: bold;
+                min-width: 80px;
+            }
+            QMessageBox QPushButton:hover {
+                background-color: #45a049;
+            }
+            QMessageBox QPushButton:pressed {
+                background-color: #3d8b40;
             }
         """)
         
@@ -358,7 +382,7 @@ class MainWindow(QMainWindow):
         
         self.filter_combo = QComboBox()
         self.filter_combo.addItems([
-            "高斯滤波", "均值滤波", "中值滤波", 
+            "高斯滤波", "均值滤波", "中值滤波",
             "双边滤波", "锐化滤波", "浮雕滤波"
         ])
         
@@ -366,8 +390,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(filter_type_group)
         
         # 核大小控制
-        kernel_group = QGroupBox("核大小")
-        kernel_layout = QVBoxLayout(kernel_group)
+        self.kernel_group = QGroupBox("核大小")
+        kernel_layout = QVBoxLayout(self.kernel_group)
         
         self.kernel_slider = QSlider(Qt.Orientation.Horizontal)
         self.kernel_slider.setRange(1, 31)
@@ -377,11 +401,11 @@ class MainWindow(QMainWindow):
         
         kernel_layout.addWidget(self.kernel_label)
         kernel_layout.addWidget(self.kernel_slider)
-        layout.addWidget(kernel_group)
+        layout.addWidget(self.kernel_group)
         
         # 高级参数
-        params_group = QGroupBox("高级参数")
-        params_layout = QGridLayout(params_group)
+        self.params_group = QGroupBox("高级参数")
+        params_layout = QGridLayout(self.params_group)
         
         self.sigma_spinbox = QDoubleSpinBox()
         self.sigma_spinbox.setRange(0.1, 10.0)
@@ -391,7 +415,7 @@ class MainWindow(QMainWindow):
         params_layout.addWidget(QLabel("Sigma:"), 0, 0)
         params_layout.addWidget(self.sigma_spinbox, 0, 1)
         
-        layout.addWidget(params_group)
+        layout.addWidget(self.params_group)
         
         # 应用按钮
         self.apply_filter_btn = QPushButton("应用滤波")
@@ -403,6 +427,9 @@ class MainWindow(QMainWindow):
             }
         """)
         layout.addWidget(self.apply_filter_btn)
+        
+        # 初始化参数显示状态
+        self.update_filter_params_visibility()
         
         return tab
     
@@ -417,7 +444,7 @@ class MainWindow(QMainWindow):
         
         self.morph_combo = QComboBox()
         self.morph_combo.addItems([
-            "膨胀", "腐蚀", "开运算", "闭运算", 
+            "膨胀", "腐蚀", "开运算", "闭运算",
             "形态学梯度", "顶帽变换", "黑帽变换"
         ])
         
@@ -425,8 +452,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(morph_type_group)
         
         # 核大小和迭代次数
-        params_group = QGroupBox("参数")
-        params_layout = QGridLayout(params_group)
+        self.morph_params_group = QGroupBox("参数")
+        params_layout = QGridLayout(self.morph_params_group)
         
         self.morph_kernel_slider = QSlider(Qt.Orientation.Horizontal)
         self.morph_kernel_slider.setRange(1, 31)
@@ -443,7 +470,7 @@ class MainWindow(QMainWindow):
         params_layout.addWidget(QLabel("迭代次数:"), 1, 0)
         params_layout.addWidget(self.morph_iter_spinbox, 1, 1)
         
-        layout.addWidget(params_group)
+        layout.addWidget(self.morph_params_group)
         
         # 应用按钮
         self.apply_morph_btn = QPushButton("应用形态学操作")
@@ -455,6 +482,9 @@ class MainWindow(QMainWindow):
             }
         """)
         layout.addWidget(self.apply_morph_btn)
+        
+        # 初始化参数显示状态
+        self.update_morph_params_visibility()
         
         return tab
     
@@ -696,10 +726,12 @@ class MainWindow(QMainWindow):
         
         # 滤波选项卡
         self.kernel_slider.valueChanged.connect(self.update_kernel_label)
+        self.filter_combo.currentTextChanged.connect(self.update_filter_params_visibility)
         self.apply_filter_btn.clicked.connect(self.apply_filter)
         
         # 形态学选项卡
         self.morph_kernel_slider.valueChanged.connect(self.update_morph_kernel_label)
+        self.morph_combo.currentTextChanged.connect(self.update_morph_params_visibility)
         self.apply_morph_btn.clicked.connect(self.apply_morphology_operation)
         
         # 特征提取选项卡
@@ -850,9 +882,39 @@ class MainWindow(QMainWindow):
         """更新核大小标签"""
         self.kernel_label.setText(f"核大小: {value}")
     
+    def update_filter_params_visibility(self):
+        """根据滤波类型更新参数可见性"""
+        filter_type = self.filter_combo.currentText()
+        
+        # 根据滤波类型决定哪些参数可见
+        if filter_type in ["高斯滤波", "均值滤波", "中值滤波"]:
+            # 这些滤波需要核大小
+            self.kernel_group.setVisible(True)
+            # 只有高斯滤波需要sigma参数
+            self.params_group.setVisible(filter_type == "高斯滤波")
+        elif filter_type == "双边滤波":
+            # 双边滤波不需要核大小滑块，但需要sigma参数
+            self.kernel_group.setVisible(False)
+            self.params_group.setVisible(True)
+            # 修改sigma标签为更具体的描述
+            self.params_group.setTitle("双边滤波参数")
+        elif filter_type in ["锐化滤波", "浮雕滤波"]:
+            # 这些滤波不需要核大小和sigma参数
+            self.kernel_group.setVisible(False)
+            self.params_group.setVisible(False)
+    
     def update_morph_kernel_label(self, value):
         """更新形态学核大小标签"""
         self.morph_kernel_label.setText(f"核大小: {value}")
+    
+    def update_morph_params_visibility(self):
+        """根据形态学操作类型更新参数可见性"""
+        morph_type = self.morph_combo.currentText()
+        
+        # 所有形态学操作都需要核大小参数，所以保持显示
+        # 但某些操作可能不需要迭代次数参数
+        # 这里我们保持所有参数都可见，因为形态学操作通常都需要这些参数
+        self.morph_params_group.setVisible(True)
     
     def update_low_threshold_label(self, value):
         """更新低阈值标签"""
@@ -990,18 +1052,22 @@ class MainWindow(QMainWindow):
         
         try:
             filter_type = self.filter_combo.currentText()
-            kernel_size = self.kernel_slider.value()
-            sigma = self.sigma_spinbox.value()
             
             if filter_type == "高斯滤波":
+                kernel_size = self.kernel_slider.value()
+                sigma = self.sigma_spinbox.value()
                 result = apply_gaussian_blur(self.current_image, kernel_size, sigma)
             elif filter_type == "均值滤波":
+                kernel_size = self.kernel_slider.value()
                 result = apply_mean_blur(self.current_image, kernel_size)
             elif filter_type == "中值滤波":
+                kernel_size = self.kernel_slider.value()
                 result = apply_median_blur(self.current_image, kernel_size)
             elif filter_type == "双边滤波":
+                sigma = self.sigma_spinbox.value()
                 result = apply_bilateral_filter(self.current_image, 9, sigma * 10, sigma * 10)
             elif filter_type == "锐化滤波":
+                sigma = self.sigma_spinbox.value()
                 result = apply_sharpen_filter(self.current_image, sigma)
             elif filter_type == "浮雕滤波":
                 result = apply_emboss_filter(self.current_image)
@@ -1099,9 +1165,14 @@ class MainWindow(QMainWindow):
                 hist, bins = calc_histogram(self.current_image)
                 hist_image = create_histogram_plot(hist, "灰度直方图", "像素值", "频率")
             
-            self.current_image = hist_image
-            self.display_image(self.current_image)
-            self.log_message("已显示直方图")
+            # 确保hist_image是numpy数组
+            if hist_image is not None and hasattr(hist_image, 'shape'):
+                self.current_image = hist_image
+                self.display_image(self.current_image)
+                self.log_message("已显示直方图")
+            else:
+                self.log_message("直方图生成失败：返回的不是有效的图像数据")
+                self.show_error_message("操作失败", "直方图生成失败：返回的不是有效的图像数据")
             
         except Exception as e:
             self.log_message(f"显示直方图失败: {str(e)}")
@@ -1137,8 +1208,7 @@ class MainWindow(QMainWindow):
             else:
                 gray = self.current_image.copy()
             
-            binary, threshold = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            
+            threshold, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
             self.current_image = binary
             self.display_image(self.current_image)
             self.log_message(f"已应用大津法阈值，阈值: {threshold}")
