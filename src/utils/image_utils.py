@@ -34,28 +34,40 @@ def numpy_to_qpixmap(image):
     
     height, width = image.shape[:2]
     
+    # 确保图像是连续的
+    if not image.flags['C_CONTIGUOUS']:
+        image = np.ascontiguousarray(image)
+    
     if len(image.shape) == 3:
         # 彩色图像 (BGR to RGB)
         if image.shape[2] == 3:
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             bytes_per_line = 3 * width
-            q_image = QImage(image_rgb.data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
+            # 将memoryview转换为bytes
+            image_data = image_rgb.data.tobytes() if hasattr(image_rgb.data, 'tobytes') else image_rgb.data
+            q_image = QImage(image_data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
         elif image.shape[2] == 4:
             # RGBA图像
             image_rgba = cv2.cvtColor(image, cv2.COLOR_BGRA2RGBA)
             bytes_per_line = 4 * width
-            q_image = QImage(image_rgba.data, width, height, bytes_per_line, QImage.Format.Format_RGBA8888)
+            # 将memoryview转换为bytes
+            image_data = image_rgba.data.tobytes() if hasattr(image_rgba.data, 'tobytes') else image_rgba.data
+            q_image = QImage(image_data, width, height, bytes_per_line, QImage.Format.Format_RGBA8888)
         else:
             # 其他通道数，取前3个通道
             image_rgb = image[:, :, :3]
             if image_rgb.shape[2] == 3:
                 image_rgb = cv2.cvtColor(image_rgb, cv2.COLOR_BGR2RGB)
             bytes_per_line = 3 * width
-            q_image = QImage(image_rgb.data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
+            # 将memoryview转换为bytes
+            image_data = image_rgb.data.tobytes() if hasattr(image_rgb.data, 'tobytes') else image_rgb.data
+            q_image = QImage(image_data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
     else:
         # 灰度图像
         bytes_per_line = width
-        q_image = QImage(image.data, width, height, bytes_per_line, QImage.Format.Format_Grayscale8)
+        # 将memoryview转换为bytes
+        image_data = image.data.tobytes() if hasattr(image.data, 'tobytes') else image.data
+        q_image = QImage(image_data, width, height, bytes_per_line, QImage.Format.Format_Grayscale8)
     
     return QPixmap.fromImage(q_image)
 
