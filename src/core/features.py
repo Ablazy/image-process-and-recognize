@@ -7,6 +7,16 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+import matplotlib.font_manager as fm
+
+# 设置matplotlib支持中文显示
+try:
+    # 尝试设置中文字体
+    plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans', 'Arial Unicode MS', 'Microsoft YaHei']
+    plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+except:
+    # 如果设置失败，使用默认字体
+    pass
 
 
 def detect_edges(image, low_threshold, high_threshold, aperture_size=3, l2_gradient=False):
@@ -268,7 +278,7 @@ def hough_circles_detection(image, method=cv2.HOUGH_GRADIENT, dp=1, min_dist=100
     return circles
 
 
-def create_histogram_plot(hist_data, title="Histogram", xlabel="Value", ylabel="Frequency"):
+def create_histogram_plot(hist_data, title="直方图", xlabel="像素值", ylabel="频率"):
     """
     创建直方图图像
     
@@ -281,25 +291,30 @@ def create_histogram_plot(hist_data, title="Histogram", xlabel="Value", ylabel="
     Returns:
         numpy.ndarray: 直方图图像
     """
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.plot(hist_data)
-    ax.set_title(title)
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    ax.grid(True, alpha=0.3)
-    
-    # 将matplotlib图形转换为numpy数组
-    canvas = FigureCanvasAgg(fig)
-    canvas.draw()
-    
-    # 获取RGB图像
-    buf = canvas.buffer_rgba()
-    hist_image = np.asarray(buf)
-    hist_image = cv2.cvtColor(hist_image, cv2.COLOR_RGBA2BGR)
-    
-    plt.close(fig)
-    
-    return hist_image
+    try:
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.plot(hist_data)
+        ax.set_title(title)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        ax.grid(True, alpha=0.3)
+        
+        # 将matplotlib图形转换为numpy数组
+        canvas = FigureCanvasAgg(fig)
+        canvas.draw()
+        
+        # 获取RGB图像
+        buf = canvas.buffer_rgba()
+        hist_image = np.asarray(buf)
+        hist_image = cv2.cvtColor(hist_image, cv2.COLOR_RGBA2BGR)
+        
+        plt.close(fig)
+        
+        return hist_image
+    except Exception as e:
+        print(f"创建直方图失败: {e}")
+        # 返回一个默认的黑色图像
+        return np.zeros((480, 640, 3), dtype=np.uint8)
 
 
 def create_color_histogram_plot(color_hist_data):
@@ -312,31 +327,36 @@ def create_color_histogram_plot(color_hist_data):
     Returns:
         numpy.ndarray: 彩色直方图图像
     """
-    fig, ax = plt.subplots(figsize=(8, 6))
-    
-    bins = color_hist_data['bins']
-    ax.plot(bins, color_hist_data['blue'], 'b-', label='Blue', alpha=0.7)
-    ax.plot(bins, color_hist_data['green'], 'g-', label='Green', alpha=0.7)
-    ax.plot(bins, color_hist_data['red'], 'r-', label='Red', alpha=0.7)
-    
-    ax.set_title("Color Histogram")
-    ax.set_xlabel("Pixel Value")
-    ax.set_ylabel("Frequency")
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    
-    # 将matplotlib图形转换为numpy数组
-    canvas = FigureCanvasAgg(fig)
-    canvas.draw()
-    
-    # 获取RGB图像
-    buf = canvas.buffer_rgba()
-    hist_image = np.asarray(buf)
-    hist_image = cv2.cvtColor(hist_image, cv2.COLOR_RGBA2BGR)
-    
-    plt.close(fig)
-    
-    return hist_image
+    try:
+        fig, ax = plt.subplots(figsize=(8, 6))
+        
+        bins = color_hist_data['bins']
+        ax.plot(bins, color_hist_data['blue'], 'b-', label='蓝色', alpha=0.7)
+        ax.plot(bins, color_hist_data['green'], 'g-', label='绿色', alpha=0.7)
+        ax.plot(bins, color_hist_data['red'], 'r-', label='红色', alpha=0.7)
+        
+        ax.set_title("彩色直方图")
+        ax.set_xlabel("像素值")
+        ax.set_ylabel("频率")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        
+        # 将matplotlib图形转换为numpy数组
+        canvas = FigureCanvasAgg(fig)
+        canvas.draw()
+        
+        # 获取RGB图像
+        buf = canvas.buffer_rgba()
+        hist_image = np.asarray(buf)
+        hist_image = cv2.cvtColor(hist_image, cv2.COLOR_RGBA2BGR)
+        
+        plt.close(fig)
+        
+        return hist_image
+    except Exception as e:
+        print(f"创建彩色直方图失败: {e}")
+        # 返回一个默认的黑色图像
+        return np.zeros((480, 640, 3), dtype=np.uint8)
 
 
 def get_features_info():
