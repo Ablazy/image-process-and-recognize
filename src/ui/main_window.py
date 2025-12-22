@@ -62,6 +62,9 @@ class MainWindow(QMainWindow):
         self.current_index = 0
         self.dataset_size = 0
         
+        # 添加标志位防止重复缩放
+        self._is_resizing = False
+        
         # 初始化数据集管理器和预测器
         self.mnist_manager = None
         self.predictor = None
@@ -138,6 +141,38 @@ class MainWindow(QMainWindow):
                 padding: 5px;
                 background-color: white;
                 color: #333333;
+                min-height: 25px;
+            }
+            /* 设置按钮样式 */
+            QSpinBox::up-button, QSpinBox::down-button,
+            QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+                width: 20px;
+                background-color: #f8f8f8;
+                border: 1px solid #dddddd;
+            }
+            QSpinBox::up-button:hover, QSpinBox::down-button:hover,
+            QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {
+                background-color: #e8e8e8;
+                border: 1px solid #bbbbbb;
+            }
+            /* 明确设置箭头颜色 */
+            QSpinBox::up-arrow, QSpinBox::down-arrow,
+            QDoubleSpinBox::up-arrow, QDoubleSpinBox::down-arrow {
+                width: 7px;
+                height: 7px;
+                background-color: #333333;
+                border: 1px solid #333333;
+                border-radius: 1px;
+            }
+            QSpinBox::up-arrow:hover, QSpinBox::down-arrow:hover,
+            QDoubleSpinBox::up-arrow:hover, QDoubleSpinBox::down-arrow:hover {
+                background-color: #000000;
+                border: 1px solid #000000;
+            }
+            QSpinBox::up-arrow:disabled, QSpinBox::down-arrow:disabled,
+            QDoubleSpinBox::up-arrow:disabled, QDoubleSpinBox::down-arrow:disabled {
+                background-color: #cccccc;
+                border: 1px solid #cccccc;
             }
             QTextEdit {
                 background-color: #f8f8f8;
@@ -228,6 +263,9 @@ class MainWindow(QMainWindow):
         self.index_spinbox = QSpinBox()
         self.index_spinbox.setRange(0, 9999)
         self.index_spinbox.setValue(0)
+        self.index_spinbox.setMinimumWidth(80)
+        self.index_spinbox.setMinimumHeight(25)
+        self.index_spinbox.setButtonSymbols(QSpinBox.ButtonSymbols.UpDownArrows)
         self.jump_btn = QPushButton("跳转")
         self.load_dataset_btn = QPushButton("加载数据集")
         
@@ -319,6 +357,9 @@ class MainWindow(QMainWindow):
         self.scale_spinbox.setValue(1.0)
         self.scale_spinbox.setSingleStep(0.1)
         self.scale_spinbox.setSuffix("倍")
+        self.scale_spinbox.setMinimumWidth(100)
+        self.scale_spinbox.setMinimumHeight(25)
+        self.scale_spinbox.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.UpDownArrows)
         
         scale_layout.addWidget(QLabel("缩放比例:"))
         scale_layout.addWidget(self.scale_spinbox)
@@ -332,6 +373,12 @@ class MainWindow(QMainWindow):
         self.crop_y_spinbox = QSpinBox()
         self.crop_w_spinbox = QSpinBox()
         self.crop_h_spinbox = QSpinBox()
+        
+        # 设置裁剪SpinBox的最小尺寸
+        for spinbox in [self.crop_x_spinbox, self.crop_y_spinbox, self.crop_w_spinbox, self.crop_h_spinbox]:
+            spinbox.setMinimumWidth(60)
+            spinbox.setMinimumHeight(25)
+            spinbox.setButtonSymbols(QSpinBox.ButtonSymbols.UpDownArrows)
         
         crop_layout.addWidget(QLabel("X:"), 0, 0)
         crop_layout.addWidget(self.crop_x_spinbox, 0, 1)
@@ -411,6 +458,9 @@ class MainWindow(QMainWindow):
         self.sigma_spinbox.setRange(0.1, 10.0)
         self.sigma_spinbox.setValue(1.0)
         self.sigma_spinbox.setSingleStep(0.1)
+        self.sigma_spinbox.setMinimumWidth(80)
+        self.sigma_spinbox.setMinimumHeight(25)
+        self.sigma_spinbox.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.UpDownArrows)
         
         params_layout.addWidget(QLabel("Sigma:"), 0, 0)
         params_layout.addWidget(self.sigma_spinbox, 0, 1)
@@ -464,6 +514,9 @@ class MainWindow(QMainWindow):
         self.morph_iter_spinbox = QSpinBox()
         self.morph_iter_spinbox.setRange(1, 10)
         self.morph_iter_spinbox.setValue(1)
+        self.morph_iter_spinbox.setMinimumWidth(60)
+        self.morph_iter_spinbox.setMinimumHeight(25)
+        self.morph_iter_spinbox.setButtonSymbols(QSpinBox.ButtonSymbols.UpDownArrows)
         
         params_layout.addWidget(self.morph_kernel_label, 0, 0)
         params_layout.addWidget(self.morph_kernel_slider, 0, 1)
@@ -668,12 +721,25 @@ class MainWindow(QMainWindow):
             self.image_label.setText("图像格式错误")
             return
         
-        # 缩放图像以适应显示区域
-        scaled_pixmap = pixmap.scaled(
-            self.image_label.size(),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
-        )
+        # 缩放图像以适应显示区域，但保持原始尺寸比例
+        # 获取图像显示区域的大小
+        label_size = self.image_label.size()
+        if label_size.width() > 0 and label_size.height() > 0:
+            # 计算缩放比例，确保图像能完整显示在标签内
+            scale_w = label_size.width() / pixmap.width()
+            scale_h = label_size.height() / pixmap.height()
+            scale = min(scale_w, scale_h)  # 使用较小的缩放比例，确保图像完全适应显示区域
+            
+            # 应用缩放
+            scaled_pixmap = pixmap.scaled(
+                label_size.width(),
+                label_size.height(),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+        else:
+            # 如果显示区域大小无效，使用原始图像
+            scaled_pixmap = pixmap
         
         self.image_label.setPixmap(scaled_pixmap)
     
@@ -685,9 +751,24 @@ class MainWindow(QMainWindow):
     def resizeEvent(self, event):
         """窗口大小改变事件"""
         super().resizeEvent(event)
-        # 重新调整图像显示
+        
+        # 防止重复调用
+        if hasattr(self, '_is_resizing') and self._is_resizing:
+            return
+        
+        # 只有当窗口大小确实改变时才重新显示图像
+        if hasattr(self, '_last_size') and self._last_size == event.size():
+            return
+        
+        self._last_size = event.size()
+        self._is_resizing = True
+        
+        # 从原始图像重新显示，而不是对已缩放的pixmap再次缩放
         if self.current_image is not None:
             self.display_image(self.current_image)
+        
+        # 使用定时器重置标志位，确保所有resize事件处理完毕
+        QTimer.singleShot(100, lambda: setattr(self, '_is_resizing', False))
     
     def closeEvent(self, event):
         """窗口关闭事件"""
@@ -865,9 +946,14 @@ class MainWindow(QMainWindow):
     def reset_image(self):
         """恢复原始图像"""
         if self.original_image is not None:
-            self.current_image = self.original_image.copy()
-            self.display_image(self.current_image)
-            self.log_message("已恢复原始图像")
+            # 确保original_image是numpy数组
+            if hasattr(self.original_image, 'shape'):
+                self.current_image = self.original_image.copy()
+                self.display_image(self.current_image)
+                self.log_message("已恢复原始图像")
+            else:
+                self.log_message("原始图像数据格式错误")
+                self.show_error_message("操作失败", "原始图像数据格式错误")
         else:
             self.log_message("没有原始图像可恢复")
     
@@ -1167,8 +1253,8 @@ class MainWindow(QMainWindow):
             
             # 确保hist_image是numpy数组
             if hist_image is not None and hasattr(hist_image, 'shape'):
-                self.current_image = hist_image
-                self.display_image(self.current_image)
+                # 直接显示直方图，但不替换current_image
+                self.display_image(hist_image)
                 self.log_message("已显示直方图")
             else:
                 self.log_message("直方图生成失败：返回的不是有效的图像数据")
