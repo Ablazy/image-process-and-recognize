@@ -75,8 +75,8 @@ class ImagePredictor:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
         # 调整大小为224x224
-        image_resized = cv2.resize(image, (224, 224))
-        
+        # image_resized = cv2.resize(image, (224, 224))
+        image_resized = image.copy()
         # 归一化
         image_normalized = image_resized.astype(np.float32) / 255.0
         image_normalized = (image_normalized - 0.1307) / 0.3081
