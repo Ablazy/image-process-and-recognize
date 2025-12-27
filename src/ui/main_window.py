@@ -25,7 +25,7 @@ from ml.predict import ImagePredictor
 from core.basic_ops import rotate_image, scale_image, crop_image, flip_image
 from core.filters import apply_gaussian_blur, apply_mean_blur, apply_median_blur, apply_bilateral_filter, apply_sharpen_filter, apply_emboss_filter
 from core.morphology import apply_morphology
-from core.features import detect_edges, calc_histogram, calc_histogram_equalization, calc_clahe, create_histogram_plot, create_color_histogram_plot
+from core.features import detect_edges, sobel_edge_detection, laplacian_edge_detection, calc_histogram, calc_histogram_equalization, calc_clahe, create_histogram_plot, create_color_histogram_plot
 
 
 class ImageProcessingThread(QThread):
@@ -548,7 +548,19 @@ class MainWindow(QMainWindow):
         
         # 边缘检测
         edge_group = QGroupBox("边缘检测")
-        edge_layout = QGridLayout(edge_group)
+        edge_layout = QVBoxLayout(edge_group)
+        
+        # 边缘检测方法选择
+        method_layout = QHBoxLayout()
+        method_layout.addWidget(QLabel("检测方法:"))
+        self.edge_method_combo = QComboBox()
+        self.edge_method_combo.addItems(["Canny边缘检测", "Sobel边缘检测", "拉普拉斯边缘检测"])
+        method_layout.addWidget(self.edge_method_combo)
+        edge_layout.addLayout(method_layout)
+        
+        # Canny边缘检测参数
+        self.canny_params_group = QGroupBox("Canny参数")
+        canny_layout = QGridLayout(self.canny_params_group)
         
         self.low_threshold_slider = QSlider(Qt.Orientation.Horizontal)
         self.low_threshold_slider.setRange(0, 255)
@@ -560,13 +572,39 @@ class MainWindow(QMainWindow):
         self.high_threshold_slider.setValue(150)
         self.high_threshold_label = QLabel("高阈值: 150")
         
-        edge_layout.addWidget(self.low_threshold_label, 0, 0)
-        edge_layout.addWidget(self.low_threshold_slider, 0, 1)
-        edge_layout.addWidget(self.high_threshold_label, 1, 0)
-        edge_layout.addWidget(self.high_threshold_slider, 1, 1)
+        canny_layout.addWidget(self.low_threshold_label, 0, 0)
+        canny_layout.addWidget(self.low_threshold_slider, 0, 1)
+        canny_layout.addWidget(self.high_threshold_label, 1, 0)
+        canny_layout.addWidget(self.high_threshold_slider, 1, 1)
+        
+        edge_layout.addWidget(self.canny_params_group)
+        
+        # Sobel边缘检测参数
+        self.sobel_params_group = QGroupBox("Sobel参数")
+        sobel_layout = QGridLayout(self.sobel_params_group)
+        
+        sobel_layout.addWidget(QLabel("核大小:"), 0, 0)
+        self.sobel_ksize_combo = QComboBox()
+        self.sobel_ksize_combo.addItems(["1", "3", "5", "7"])
+        self.sobel_ksize_combo.setCurrentIndex(1)  # 默认选择3
+        sobel_layout.addWidget(self.sobel_ksize_combo, 0, 1)
+        
+        edge_layout.addWidget(self.sobel_params_group)
+        
+        # 拉普拉斯边缘检测参数
+        self.laplacian_params_group = QGroupBox("拉普拉斯参数")
+        laplacian_layout = QGridLayout(self.laplacian_params_group)
+        
+        laplacian_layout.addWidget(QLabel("核大小:"), 0, 0)
+        self.laplacian_ksize_combo = QComboBox()
+        self.laplacian_ksize_combo.addItems(["1", "3", "5", "7"])
+        self.laplacian_ksize_combo.setCurrentIndex(1)  # 默认选择3
+        laplacian_layout.addWidget(self.laplacian_ksize_combo, 0, 1)
+        
+        edge_layout.addWidget(self.laplacian_params_group)
         
         self.edge_btn = QPushButton("应用边缘检测")
-        edge_layout.addWidget(self.edge_btn, 2, 0, 1, 2)
+        edge_layout.addWidget(self.edge_btn)
         
         layout.addWidget(edge_group)
         
@@ -593,6 +631,9 @@ class MainWindow(QMainWindow):
         threshold_layout.addWidget(self.adaptive_btn)
         
         layout.addWidget(threshold_group)
+        
+        # 初始化参数显示状态
+        self.update_edge_params_visibility()
         
         return tab
     
@@ -816,6 +857,7 @@ class MainWindow(QMainWindow):
         self.apply_morph_btn.clicked.connect(self.apply_morphology_operation)
         
         # 特征提取选项卡
+        self.edge_method_combo.currentTextChanged.connect(self.update_edge_params_visibility)
         self.low_threshold_slider.valueChanged.connect(self.update_low_threshold_label)
         self.high_threshold_slider.valueChanged.connect(self.update_high_threshold_label)
         self.edge_btn.clicked.connect(self.apply_edge_detection)
@@ -1009,6 +1051,23 @@ class MainWindow(QMainWindow):
     def update_high_threshold_label(self, value):
         """更新高阈值标签"""
         self.high_threshold_label.setText(f"高阈值: {value}")
+    
+    def update_edge_params_visibility(self):
+        """根据边缘检测方法更新参数可见性"""
+        method = self.edge_method_combo.currentText()
+        
+        if method == "Canny边缘检测":
+            self.canny_params_group.setVisible(True)
+            self.sobel_params_group.setVisible(False)
+            self.laplacian_params_group.setVisible(False)
+        elif method == "Sobel边缘检测":
+            self.canny_params_group.setVisible(False)
+            self.sobel_params_group.setVisible(True)
+            self.laplacian_params_group.setVisible(False)
+        elif method == "拉普拉斯边缘检测":
+            self.canny_params_group.setVisible(False)
+            self.sobel_params_group.setVisible(False)
+            self.laplacian_params_group.setVisible(True)
     
     def toggle_apply_mode(self, checked):
         """切换应用模式"""
@@ -1221,14 +1280,31 @@ class MainWindow(QMainWindow):
             return
         
         try:
-            low_threshold = self.low_threshold_slider.value()
-            high_threshold = self.high_threshold_slider.value()
+            method = self.edge_method_combo.currentText()
             
-            result = detect_edges(self.current_image, low_threshold, high_threshold)
+            if method == "Canny边缘检测":
+                low_threshold = self.low_threshold_slider.value()
+                high_threshold = self.high_threshold_slider.value()
+                result = detect_edges(self.current_image, low_threshold, high_threshold)
+                self.log_message(f"已应用Canny边缘检测: 低阈值={low_threshold}, 高阈值={high_threshold}")
+                
+            elif method == "Sobel边缘检测":
+                ksize = int(self.sobel_ksize_combo.currentText())
+                grad_x, grad_y, magnitude = sobel_edge_detection(self.current_image, ksize=ksize)
+                # 使用梯度幅值作为结果
+                result = magnitude
+                self.log_message(f"已应用Sobel边缘检测: 核大小={ksize}")
+                
+            elif method == "拉普拉斯边缘检测":
+                ksize = int(self.laplacian_ksize_combo.currentText())
+                result = laplacian_edge_detection(self.current_image, ksize=ksize)
+                self.log_message(f"已应用拉普拉斯边缘检测: 核大小={ksize}")
+            else:
+                self.log_message(f"未知的边缘检测方法: {method}")
+                return
             
             self.current_image = result
             self.display_image(self.current_image)
-            self.log_message(f"已应用边缘检测: 低阈值={low_threshold}, 高阈值={high_threshold}")
             
         except Exception as e:
             self.log_message(f"边缘检测失败: {str(e)}")
