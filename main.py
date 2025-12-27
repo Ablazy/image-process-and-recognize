@@ -24,14 +24,6 @@ def main():
     app.setApplicationVersion("1.0.0")
     app.setOrganizationName("ImageProcessing Lab")
     
-    # 设置高DPI支持 (修复属性名)
-    try:
-        app.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling, True)
-        app.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
-    except AttributeError:
-        # 如果属性不存在，跳过高DPI设置
-        print("警告: 高DPI属性不可用，跳过高DPI设置")
-    
     # 创建并显示主窗口
     window = MainWindow()
     window.show()
