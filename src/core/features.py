@@ -219,65 +219,6 @@ def calc_clahe(image, clip_limit=2.0, tile_grid_size=(8, 8)):
     
     return clahe_img
 
-
-def hough_lines_detection(image, rho=1, theta=np.pi/180, threshold=100, 
-                      min_line_length=50, max_line_gap=10):
-    """
-    霍夫直线检测
-    
-    Args:
-        image: 输入边缘图像
-        rho: 距离分辨率
-        theta: 角度分辨率
-        threshold: 阈值
-        min_line_length: 最小线长
-        max_line_gap: 最大线段间隙
-        
-    Returns:
-        numpy.ndarray: 检测到的直线
-    """
-    if image is None:
-        raise ValueError("输入图像不能为None")
-    
-    lines = cv2.HoughLinesP(image, rho, theta, threshold, 
-                          minLineLength=min_line_length, 
-                          maxLineGap=max_line_gap)
-    
-    return lines
-
-
-def hough_circles_detection(image, method=cv2.HOUGH_GRADIENT, dp=1, min_dist=100,
-                         param1=50, param2=30, min_radius=0, max_radius=0):
-    """
-    霍夫圆检测
-    
-    Args:
-        image: 输入图像
-        method: 检测方法
-        dp: 累加器分辨率
-        min_dist: 检测到的圆的最小距离
-        param1: Canny边缘检测高阈值
-        param2: 累加器阈值
-        min_radius: 最小半径
-        max_radius: 最大半径
-        
-    Returns:
-        numpy.ndarray: 检测到的圆
-    """
-    if image is None:
-        raise ValueError("输入图像不能为None")
-    
-    # 确保是单通道图像
-    if len(image.shape) == 3:
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    
-    circles = cv2.HoughCircles(image, method, dp, min_dist,
-                             param1=param1, param2=param2,
-                             minRadius=min_radius, maxRadius=max_radius)
-    
-    return circles
-
-
 def create_histogram_plot(hist_data, title="直方图", xlabel="像素值", ylabel="频率"):
     """
     创建直方图图像
